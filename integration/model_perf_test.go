@@ -59,18 +59,6 @@ func doModelPerfTest(t *testing.T, chatModels []string) {
 	client, _, cleanup := InitServerConnection(ctx, t)
 	defer cleanup()
 
-	// TODO use info API eventually
-	var maxVram uint64
-	var err error
-	if s := os.Getenv("OLLAMA_MAX_VRAM"); s != "" {
-		maxVram, err = strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			t.Fatalf("invalid  OLLAMA_MAX_VRAM %v", err)
-		}
-	} else {
-		slog.Warn("No VRAM info available, testing all models, so larger ones might timeout...")
-	}
-
 	data, err := ioutil.ReadFile(filepath.Join("testdata", "shakespeare.txt"))
 	if err != nil {
 		t.Fatalf("failed to open test data file: %s", err)
@@ -102,18 +90,6 @@ func doModelPerfTest(t *testing.T, chatModels []string) {
 				t.Skip(fmt.Sprintf("Skipping %s architecture %s != %s", model, arch, targetArch))
 			}
 
-			if maxVram > 0 {
-				resp, err := client.List(ctx)
-				if err != nil {
-					t.Fatalf("list models failed %v", err)
-				}
-				for _, m := range resp.Models {
-					// For these tests we want to exercise a some amount of overflow on the CPU
-					if m.Name == model && float32(m.Size)*0.75 > float32(maxVram) {
-						t.Skipf("model %s is too large %s for available VRAM %s", model, format.HumanBytes(m.Size), format.HumanBytes(int64(maxVram)))
-					}
-				}
-			}
 			slog.Info("scneario", "model", model, "max_context", maxContext)
 			loaded := false
 			defer func() {

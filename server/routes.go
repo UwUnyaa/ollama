@@ -33,7 +33,6 @@ import (
 	"github.com/ollama/ollama/auth"
 	"github.com/ollama/ollama/discover"
 	"github.com/ollama/ollama/envconfig"
-	"github.com/ollama/ollama/format"
 	"github.com/ollama/ollama/fs/ggml"
 	"github.com/ollama/ollama/llm"
 	"github.com/ollama/ollama/logutil"
@@ -69,16 +68,11 @@ func experimentEnabled(name string) bool {
 
 var useClient2 = experimentEnabled("client2")
 
-// Low VRAM mode is based on the sum of total VRAM (not free) and triggers
-// reduced context length on some models
-var lowVRAMThreshold uint64 = 20 * format.GibiByte
-
 var mode string = gin.DebugMode
 
 type Server struct {
-	addr    net.Addr
-	sched   *Scheduler
-	lowVRAM bool
+	addr  net.Addr
+	sched *Scheduler
 }
 
 func init() {
@@ -138,7 +132,7 @@ func (s *Server) scheduleRunner(ctx context.Context, name string, caps []model.C
 
 	// This model is much more capable with a larger context, so set that
 	// unless it would penalize performance too much
-	if !s.lowVRAM && slices.Contains([]string{"gptoss", "gpt-oss"}, model.Config.ModelFamily) {
+	if slices.Contains([]string{"gptoss", "gpt-oss"}, model.Config.ModelFamily) {
 		opts.NumCtx = max(opts.NumCtx, 8192)
 	}
 
@@ -1559,15 +1553,6 @@ func Serve(ln net.Listener) error {
 	// This will log warnings to the log in case we have problems with detected GPUs
 	gpus := discover.GPUDevices(ctx, nil)
 	discover.LogDetails(gpus)
-
-	var totalVRAM uint64
-	for _, gpu := range gpus {
-		totalVRAM += gpu.TotalMemory - envconfig.GpuOverhead()
-	}
-	if totalVRAM < lowVRAMThreshold {
-		s.lowVRAM = true
-		slog.Info("entering low vram mode", "total vram", format.HumanBytes2(totalVRAM), "threshold", format.HumanBytes2(lowVRAMThreshold))
-	}
 
 	err = srvr.Serve(ln)
 	// If server is closed from the signal handler, wait for the ctx to be done

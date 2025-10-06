@@ -30,7 +30,6 @@ func TestBlueSky(t *testing.T) {
 }
 
 func TestUnicode(t *testing.T) {
-	skipUnderMinVRAM(t, 6)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	// Set up the test data

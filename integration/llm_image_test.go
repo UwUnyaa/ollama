@@ -12,7 +12,6 @@ import (
 )
 
 func TestVisionModels(t *testing.T) {
-	skipUnderMinVRAM(t, 6)
 	type testCase struct {
 		model string
 	}
@@ -63,7 +62,6 @@ func TestVisionModels(t *testing.T) {
 }
 
 func TestIntegrationSplitBatch(t *testing.T) {
-	skipUnderMinVRAM(t, 6)
 	image, err := base64.StdEncoding.DecodeString(imageEncoding)
 	if err != nil {
 		t.Fatal(err)

@@ -67,16 +67,6 @@ func TestConcurrentGenerate(t *testing.T) {
 // Stress the scheduler and attempt to load more models than will fit to cause thrashing
 // This test will always load at least 2 models even on CPU based systems
 func TestMultiModelStress(t *testing.T) {
-	s := os.Getenv("OLLAMA_MAX_VRAM")
-	if s == "" {
-		s = "0"
-	}
-
-	maxVram, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// All models compatible with ollama-engine
 	smallModels := []string{
 		"llama3.2:1b",
@@ -94,14 +84,24 @@ func TestMultiModelStress(t *testing.T) {
 		"gemma2:9b",      // ~8.1G
 	}
 
+	// Default to small models, but allow override via environment variable
 	var chosenModels []string
-	switch {
-	case maxVram < 10000*format.MebiByte:
-		slog.Info("selecting small models")
+	s := os.Getenv("OLLAMA_MAX_VRAM")
+	if s != "" {
+		maxVram, err := strconv.ParseUint(s, 10, 64)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if maxVram >= 10000*format.MebiByte {
+			slog.Info("selecting medium models")
+			chosenModels = mediumModels
+		} else {
+			slog.Info("selecting small models")
+			chosenModels = smallModels
+		}
+	} else {
+		slog.Info("selecting small models (default)")
 		chosenModels = smallModels
-	default:
-		slog.Info("selecting medium models")
-		chosenModels = mediumModels
 	}
 
 	softTimeout, hardTimeout := getTimeouts(t)
@@ -120,6 +120,7 @@ func TestMultiModelStress(t *testing.T) {
 	// Determine how many models we can load in parallel before we exceed VRAM
 	// The intent is to go 1 over what can fit so we force the scheduler to thrash
 	targetLoadCount := 0
+	var err error
 	slog.Info("Loading models to find how many can fit in VRAM before overflowing")
 chooseModels:
 	for i, model := range chosenModels {
@@ -153,8 +154,7 @@ chooseModels:
 		}
 	}
 	if targetLoadCount == len(chosenModels) {
-		// TODO consider retrying the medium models
-		slog.Warn("all models being used without exceeding VRAM, set OLLAMA_MAX_VRAM so test can pick larger models")
+		slog.Warn("all models being used without exceeding capacity")
 	}
 
 	r := rand.New(rand.NewSource(0))

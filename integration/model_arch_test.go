@@ -27,18 +27,6 @@ func TestModelsGenerate(t *testing.T) {
 	client, _, cleanup := InitServerConnection(ctx, t)
 	defer cleanup()
 
-	// TODO use info API eventually
-	var maxVram uint64
-	var err error
-	if s := os.Getenv("OLLAMA_MAX_VRAM"); s != "" {
-		maxVram, err = strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			t.Fatalf("invalid  OLLAMA_MAX_VRAM %v", err)
-		}
-	} else {
-		slog.Warn("No VRAM info available, testing all models, so larger ones might timeout...")
-	}
-
 	var chatModels []string
 	if s := os.Getenv("OLLAMA_NEW_ENGINE"); s != "" {
 		chatModels = ollamaEngineChatModels
@@ -53,17 +41,6 @@ func TestModelsGenerate(t *testing.T) {
 			}
 			if err := PullIfMissing(ctx, client, model); err != nil {
 				t.Fatalf("pull failed %s", err)
-			}
-			if maxVram > 0 {
-				resp, err := client.List(ctx)
-				if err != nil {
-					t.Fatalf("list models failed %v", err)
-				}
-				for _, m := range resp.Models {
-					if m.Name == model && float32(m.Size)*1.2 > float32(maxVram) {
-						t.Skipf("model %s is too large for available VRAM: %s > %s", model, format.HumanBytes(m.Size), format.HumanBytes(int64(maxVram)))
-					}
-				}
 			}
 			// TODO - fiddle with context size
 			req := api.GenerateRequest{
@@ -86,18 +63,6 @@ func TestModelsEmbed(t *testing.T) {
 	client, _, cleanup := InitServerConnection(ctx, t)
 	defer cleanup()
 
-	// TODO use info API eventually
-	var maxVram uint64
-	var err error
-	if s := os.Getenv("OLLAMA_MAX_VRAM"); s != "" {
-		maxVram, err = strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			t.Fatalf("invalid  OLLAMA_MAX_VRAM %v", err)
-		}
-	} else {
-		slog.Warn("No VRAM info available, testing all models, so larger ones might timeout...")
-	}
-
 	data, err := ioutil.ReadFile(filepath.Join("testdata", "embed.json"))
 	if err != nil {
 		t.Fatalf("failed to open test data file: %s", err)
@@ -115,17 +80,6 @@ func TestModelsEmbed(t *testing.T) {
 			}
 			if err := PullIfMissing(ctx, client, model); err != nil {
 				t.Fatalf("pull failed %s", err)
-			}
-			if maxVram > 0 {
-				resp, err := client.List(ctx)
-				if err != nil {
-					t.Fatalf("list models failed %v", err)
-				}
-				for _, m := range resp.Models {
-					if m.Name == model && float32(m.Size)*1.2 > float32(maxVram) {
-						t.Skipf("model %s is too large for available VRAM: %s > %s", model, format.HumanBytes(m.Size), format.HumanBytes(int64(maxVram)))
-					}
-				}
 			}
 			req := api.EmbeddingRequest{
 				Model:  model,

@@ -25,7 +25,6 @@ import (
 
 	"github.com/ollama/ollama/api"
 	"github.com/ollama/ollama/app/lifecycle"
-	"github.com/ollama/ollama/format"
 )
 
 var (
@@ -703,19 +702,7 @@ func ChatRequests() ([]api.ChatRequest, [][]string) {
 	return reqs, results
 }
 
-func skipUnderMinVRAM(t *testing.T, gb uint64) {
-	// TODO use info API in the future
-	if s := os.Getenv("OLLAMA_MAX_VRAM"); s != "" {
-		maxVram, err := strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// Don't hammer on small VRAM cards...
-		if maxVram < gb*format.GibiByte {
-			t.Skip("skipping with small VRAM to avoid timeouts")
-		}
-	}
-}
+
 
 // Skip if the target model isn't X% GPU loaded to avoid excessive runtime
 func skipIfNotGPULoaded(ctx context.Context, t *testing.T, client *api.Client, model string, minPercent int) {
